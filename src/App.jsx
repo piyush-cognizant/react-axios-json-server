@@ -16,6 +16,7 @@ const App = () => {
   const [error, setError] = useState(null)
   const [books, setBooks] = useState([])
   const [editMode, setEditMode] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   // Create an axios instance
   const ax = axios.create({
@@ -25,8 +26,29 @@ const App = () => {
   // Get all books
   const getBooks = async () => {
     try {
-      const response = await ax.get(`/books?id=${searchId}`)
-      setBooks(response.data)
+      setLoading(true)
+      if(!searchId) {
+        const response = await ax.get('/books')
+        setBooks(response.data)
+        setLoading(false)
+        return
+      }
+      const responseById = await ax.get(`/books?id=${searchId}`)
+      const responseByName = await ax.get(`/books?name=${searchId}`)
+      const responseByPrice = await ax.get(`/books?price=${searchId}`)
+      const combinedResults = [
+        ...responseById.data,
+        ...responseByName.data,   
+        ...responseByPrice.data
+      ]
+      // Remove duplicates
+      const uniqueResults = Array.from(new Set(combinedResults.map(b => b.id)))
+        .map(id => {
+          return combinedResults.find(b => b.id === id)
+        })
+      
+      setBooks(uniqueResults)
+      setLoading(false)
     } catch (error) {
       console.log(error.message)
     }
@@ -173,12 +195,17 @@ const App = () => {
               {editMode && (<button type='button' onClick={handleClearForm} className='cursor-pointer'> Cancel </button>)}
             </td>
           </tr>
-          {!books.length && (
+          {loading && (
+            <tr>
+              <td colSpan="4" className='text-center'>Loading...</td>
+            </tr>
+          )}
+          {!loading && !books.length && (
             <tr>
               <td colSpan="4" className='text-center'>No books found.</td>
             </tr>
           )}
-          {
+          { !loading &&
             books.map((book) => (
               <tr key={book.id} className=''>
                 <td>{book.id}</td>
